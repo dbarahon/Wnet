@@ -1,6 +1,6 @@
 program test_Wnet
   
-!!!!Example of Wnet usage in Fortran.     
+!!!!!Example of Wnet usage in Fortran.     
   use Wnet 
   implicit none
   integer, parameter :: dp = selected_real_kind(15, 307)
