@@ -4,7 +4,6 @@ import tensorflow as tf
 
 #program to test Wnet using the same approach as in the fortran module. 
 #Written by Donifan Barahona
-
 means= [243.9, 0.6, 6.3, 0.013, 0.0002, 5.04, 21.8, 0.002, 9.75e-7, 7.87e-6, 0.6,  5.04, 21.8, 0.002 ] #hardcoded from G5NR #hardcoded from G5NR based on 100 time steps
 stds =[30.3, 0.42, 16.1, 7.9, 0.05, 20.6, 20.8, 0.0036, 7.09e-6, 2.7e-5, 0.42,  20.6, 20.8, 0.0036]
 # Fixed seed for reproducibility
