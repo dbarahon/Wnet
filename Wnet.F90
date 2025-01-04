@@ -30,7 +30,7 @@ module Wnet
 !The input to Wnet consists of a 14-dimensional vector [Ns, 14] including the Richardson number (Ri, dimensionless), total scalar
 !diffusivity for momentum (KM, in m2 s-1), the 3-dimensional wind velocity (U, V and
 !W, in m s-1), the water vapor, liquid and ice mass mixing ratios (QV, QL and QI
-!in Kg Kg-1), air density (ÏAIRD, in Kg m-3), and temperature (T in K). For each sample they must be in the order:
+!in Kg Kg-1), air density (AIRD, in Kg m-3), and temperature (T in K). For each sample they must be in the order:
 !['T', 'AIRD', 'U', 'V', 'W', 'KM', 'RI', 'QV', 'QI', 'QL', AIRD_sfc, 'KM_sfc', 'RI_sfc', 'QV_sfc']  
 !The subscript _sfc indicates surface values.
 !
