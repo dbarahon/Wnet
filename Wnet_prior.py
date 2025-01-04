@@ -5,7 +5,6 @@
 # purpose: train/validate/test Wnet-prior, plot output
 ######################################################################
 
-
 #### IMPORT PACKAGES ####
 
 import numpy as np
