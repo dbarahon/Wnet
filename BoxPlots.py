@@ -2,7 +2,7 @@
 # NASA GSFC Global Modeling and Assimilation Office (GMAO), Code 610.1
 # code developed by Donifan Barahona and Katherine Breen
 # last edited: 06.2023
-# purpose: quick subroutine to analyze the W data (box plots)
+# purpose: To analyze the W data (box plots)
 ######################################################################
 
 
