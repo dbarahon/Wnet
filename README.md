@@ -1,6 +1,6 @@
 
 
-# Vertical Velocity Standard Deviation Calculation and Plotting
+# Parameterization of Vertical Wind Velocity Standard Deviation for Atmospheric Models
 
 ## Overview
 
