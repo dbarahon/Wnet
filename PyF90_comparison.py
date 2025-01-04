@@ -53,7 +53,7 @@ def standardize_inputs(inputs):
     return (inputs - means) / stds
 
 # Load the Keras model
-path  = '/discover/nobackup/dbarahon/ML_param/W_NET//single_level/response_and_final/GAN/best_generator.h5'
+path  = 'Wnet.h5'
 model = load_model(path)
 model.summary()
 
