@@ -8,7 +8,9 @@ This repository contains Python and Fortran scripts for calculating and plotting
 
 For training Observartional and reanalysis data should represent time series of sigmaW and atmospheric state  at different vertical positions, respectively, while the simulated data is taken from the NAS GEOS-5 Nature Run (G5NR), https://gmao.gsfc.nasa.gov/global_mesoscale/7km-G5NR/data_access/. Other scripts provide various methods for computing and visualizing sigmaW.
 
-### 1. 'Training and Development'
+Fortran versions and models for alternative inputs are also available. 
+
+### 1. Training and Development
 
 Wnet_prior.py Uses data from G5NR, to train and neural network, "Wnet-prior" that reads predicts sigmaW from the meteorological state. Because the G5NR data set is too extensive to fit in memory, only a few half-hourly output files (3-5 files) are loaded at once for training a few epochs. Then a entire new set is loaded and so on. This behavior is controlled by the parameters dtbatch_size and epochs_per_dtbatch. For training always on the same files set epochs_per_dtbatch > number epochs. If only a single "time step" from G5NR is used for training set dtbatch_size = 1. The weights for the latest of Wnet-prior can be found in the 'data' directory.   
 
