@@ -28,7 +28,12 @@ BoxPlots.py and Pdf_bysite.py compare predictions from different models at groun
 
 
 ### 3. `Fortran 90 Support`
-To ease its implementation in global models, Wnet has been translated into a standalone fortran 90 module called Wnet and saved as Wnet.F90. Wnet_driver.F90 shows a usage example in Fortran. The module requires the file Wnet_weights.txt which stores the weights of the neural network. Wnet has been optimized for openmp and could be compiled using: gfortran -fopenmp -O3 -traceback -o Wnet.exe Wnet.F90 Wnet_driver.F90. The program PyF90_comparison.py compares the F90 and Python versions of Wnet.   
+To ease its implementation in global models, Wnet has been translated into a standalone fortran 90 module called Wnet and saved as Wnet.F90. Wnet_driver.F90 shows a usage example in Fortran. The module requires the file Wnet_weights.txt which stores the weights of the neural network. Wnet has been optimized for openmp and could be compiled using: gfortran -fopenmp -O3 -traceback -o Wnet.exe Wnet.F90 Wnet_driver.F90. The program PyF90_comparison.py compares the F90 and Python versions of Wnet.  
+
+### 3. `Alternative input`
+The subfolder alternative input stores an alternative version of Wnet (Wnetb.h5) using a different set of inputs that can be more easily found in some models/reanalysis. The python and fortran versions of Wnet as well, the weights, and testing code are found in the the subfolder ./Wnet_altinput 
+All files perform similar functions as explained above.  
+
 ## Dependencies
 
 Each script has specific dependencies, which can be installed using `pip` or another package manager. Please refer to the individual script's documentation for details on their dependencies. 
