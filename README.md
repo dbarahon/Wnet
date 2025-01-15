@@ -8,7 +8,7 @@ This repository contains Python and Fortran scripts for calculating and plotting
 
 For training Observartional and reanalysis data should represent time series of sigmaW and atmospheric state  at different vertical positions, respectively, while the simulated data is taken from the NAS GEOS-5 Nature Run (G5NR), https://gmao.gsfc.nasa.gov/global_mesoscale/7km-G5NR/data_access/. Other scripts provide various methods for computing and visualizing sigmaW.
 
-Fortran versions and models for alternative inputs are also available. 
+Fortran versions and models for alternative inputs are also provided as explained below. 
 
 ### 1. Training and Development
 
