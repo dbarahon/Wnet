@@ -13,7 +13,34 @@ Choose thresholds from your profiles near the desired upper-atmosphere
 transition. Density is not an exact height coordinate. The numbers below are
 illustrative, not calibrated thresholds for 14 km.
 
-## Run from the repository root
+## Run with extracted daily files
+
+```bash
+python stabilization/retrain_wnet.py \\
+  --data-dir /path/to/Xall_daily \\
+  --wnet Wnet.h5 --prior data/Wnet_prior.h5 \\
+  --rho-start 0.23 --rho-full 0.12 \\
+  --samples-per-level 4000 --validation-fraction 0.2 \\
+  --seed 42 --output-dir stabilization/run01
+```
+
+The data directory is searched only for Xall_YYYYMMDD.nc4. A seeded 80/20 split
+holds out entire daily files; exact paths are saved in config.json. Do not combine
+--data-dir with --train/--validation. Those explicit-path options remain available.
+The reader loads one time/level horizontal slice at a time, broadcasts compact
+surface fields, and applies the original Wnet.F90 normalization once. It rejects
+NetCDF marked standardized and the incomplete PySR sample table.
+
+By default 4,000 horizontal cells are sampled without replacement per time/level
+(or all cells when fewer exist). Training samples change each epoch; validation
+samples stay fixed. This is per time AND level, not per day/level. Use
+--samples-per-level 0 for all cells. Sampling reduces model evaluations, not the
+horizontal slices read from disk. Sampling is uniform in grid cells, not area.
+The 0.23/0.12 kg m-3 defaults roughly span 14-18 km in a reference atmosphere;
+actual heights vary geographically and seasonally. Validate these thresholds
+against your profiles and observational coverage. No height input is added.
+
+## Run with explicit files from the repository root
 
 Use the TensorFlow/Keras environment that can load your original HDF5 models.
 Dependencies: numpy, tensorflow, h5py; also xarray and a NetCDF backend for NetCDF.
@@ -59,7 +86,7 @@ Physical units are required. If the four `_sfc` fields are missing, supply
 `--surface-level 71` for the original GEOS model-level convention, or the
 appropriate **coordinate value** for your data. The script never guesses the
 surface from level ordering. Surface variables are broadcast across levels.
-NetCDF is read one time slice at a time; each slice (or complete NPZ file) must
+NetCDF is read one time/level slice at a time; each slice (or complete NPZ file) must
 fit in memory. Use moderate-sized shards for global datasets. Inputs must
 already be collocated; this script does not interpolate separate met files.
 Invalid/nonfinite cells fail explicitly; remove missing or below-ground cells

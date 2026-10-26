@@ -63,7 +63,7 @@ class ExtractionTests(unittest.TestCase):
             args = SimpleNamespace(base_dir=tmp, outdir=tmp, overwrite=False, surface_level=71)
             write_day(pd.Timestamp('2020-01-01'), args)
             output = str(Path(tmp) / 'Xall_20200101.nc4')
-            x = list(input_blocks(output))[0]
+            x = np.concatenate(list(input_blocks(output)), axis=0)
             self.assertEqual(x.shape, (3, 14))
             np.testing.assert_allclose(x[:, 11], 7.)
             with xr.open_dataset(output) as result:

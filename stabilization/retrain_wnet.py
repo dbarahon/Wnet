@@ -33,7 +33,8 @@ def expand_files(patterns):
     return sorted(set(files))
 
 
-def input_blocks(path, standardized=False, surface_level=None):
+def input_blocks(path, standardized=False, surface_level=None,
+                 samples_per_level=0, seed=42):
     """NPZ: X[N,14]. NetCDF: named, collocated features, one time at a time."""
     if path.endswith('.npz'):
         with np.load(path, allow_pickle=False) as data:
@@ -42,23 +43,47 @@ def input_blocks(path, standardized=False, surface_level=None):
     if standardized:
         raise ValueError('--standardized is supported only for NPZ inputs')
     import xarray as xr
+    rng = np.random.default_rng(seed)
     with xr.open_dataset(path) as ds:
+        if str(ds.attrs.get('standardized', 'false')).lower() == 'true':
+            raise ValueError('NetCDF inputs must contain raw physical values')
+        if 'sample' in ds.dims:
+            raise ValueError('Use extracted gridded Xall files, not the incomplete PySR sample table')
         for t in range(ds.sizes.get('time', 1)):
-            block = ds.isel(time=t, drop=True) if 'time' in ds.dims else ds
-            arrays = []
-            for name in FEATURES:
-                if name in block:
-                    value = block[name]
-                elif name.endswith('_sfc') and surface_level is not None:
-                    value = block[name[:-4]].sel(lev=surface_level, drop=True)
-                else:
-                    raise ValueError(f'{path}: missing {name}; supply surface fields '
-                                     'or --surface-level with a lev coordinate value')
-                arrays.append(value)
-            arrays = xr.broadcast(*arrays)
-            dims = arrays[0].dims
-            yield np.column_stack([v.transpose(*dims).values.reshape(-1)
-                                   for v in arrays]).astype('float32')
+            time_block = ds.isel(time=t, drop=True) if 'time' in ds.dims else ds
+            for lev in range(time_block.sizes.get('lev', 1)):
+                block = time_block.isel(lev=lev, drop=True) if 'lev' in time_block.dims else time_block
+                arrays = []
+                for name in FEATURES:
+                    if name in block:
+                        value = block[name]
+                    elif name.endswith('_sfc') and surface_level is not None:
+                        value = time_block[name[:-4]].sel(lev=surface_level, drop=True)
+                    else:
+                        raise ValueError(f'{path}: missing {name}')
+                    arrays.append(value)
+                arrays = xr.broadcast(*arrays)
+                dims = arrays[0].dims
+                raw = np.column_stack([v.transpose(*dims).values.reshape(-1)
+                                       for v in arrays]).astype('float32')
+                if not np.isfinite(raw).all() or np.any(raw[:, 1] <= 0):
+                    raise ValueError(f'{path}: invalid features or nonpositive density')
+                if samples_per_level and len(raw) > samples_per_level:
+                    raw = raw[rng.choice(len(raw), samples_per_level, replace=False)]
+                yield raw
+
+
+def split_daily_files(directory, fraction, seed):
+    """Hold out entire days, never neighboring cells from the same file."""
+    if not 0 < fraction < 1:
+        raise ValueError('validation-fraction must be between zero and one')
+    files = sorted(str(p.resolve()) for p in Path(directory).glob('Xall_????????.nc4'))
+    if len(files) < 2:
+        raise ValueError('data-dir must contain at least two Xall_YYYYMMDD.nc4 files')
+    rng = np.random.default_rng(seed)
+    rng.shuffle(files)
+    n = min(len(files) - 1, max(1, int(np.ceil(len(files) * fraction))))
+    return sorted(files[n:]), sorted(files[:n])
 
 
 def batches(files, args, shuffle=False, seed=0):
@@ -67,7 +92,9 @@ def batches(files, args, shuffle=False, seed=0):
     if shuffle:
         rng.shuffle(order)
     for path in order:
-        for raw in input_blocks(path, args.standardized, args.surface_level):
+        for raw in input_blocks(path, args.standardized, args.surface_level,
+                                getattr(args, 'samples_per_level', 0),
+                                seed=int(rng.integers(0, 2**31))):
             if raw.ndim != 2 or raw.shape[1] != 14:
                 raise ValueError(f'{path}: expected X with shape (N,14), got {raw.shape}')
             rho = raw[:, 1] * STD[1] + MEAN[1] if args.standardized else raw[:, 1]
@@ -88,10 +115,14 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--wnet', default='Wnet.h5')
     p.add_argument('--prior', default='data/Wnet_prior.h5')
-    p.add_argument('--train', nargs='+', required=True, help='NPZ/NetCDF paths or quoted globs')
-    p.add_argument('--validation', nargs='+', required=True, help='Separate held-out files')
-    p.add_argument('--rho-start', type=float, required=True, help='Start relaxation, kg m-3')
-    p.add_argument('--rho-full', type=float, required=True, help='Full prior target, kg m-3')
+    p.add_argument('--train', nargs='+', help='NPZ/NetCDF paths or quoted globs')
+    p.add_argument('--validation', nargs='+', help='Separate held-out files')
+    p.add_argument('--data-dir', help='Directory containing raw Xall_YYYYMMDD.nc4 files')
+    p.add_argument('--validation-fraction', type=float, default=.2)
+    p.add_argument('--samples-per-level', type=int, default=4000,
+                   help='Random cells per time/level; 0 uses all cells')
+    p.add_argument('--rho-start', type=float, default=.23, help='Start relaxation, kg m-3')
+    p.add_argument('--rho-full', type=float, default=.12, help='Full prior target, kg m-3')
     p.add_argument('--surface-level', type=float, help='NetCDF lev coordinate for surface features')
     p.add_argument('--standardized', action='store_true', help='NPZ X is already standardized')
     p.add_argument('--output-dir', default='stabilization/run')
@@ -110,7 +141,20 @@ def main():
     if not np.isfinite([args.learning_rate, args.scale_floor]).all() or min(
             args.learning_rate, args.scale_floor) <= 0:
         p.error('learning-rate and scale-floor must be finite and positive')
-    train, val = expand_files(args.train), expand_files(args.validation)
+    if args.samples_per_level < 0:
+        p.error('samples-per-level must be nonnegative')
+    if args.data_dir:
+        if args.train or args.validation:
+            p.error('Use data-dir or train/validation paths, not both')
+        try:
+            train, val = split_daily_files(args.data_dir, args.validation_fraction, args.seed)
+        except ValueError as exc:
+            p.error(str(exc))
+    else:
+        if not args.train or not args.validation:
+            p.error('Supply data-dir or both train and validation paths')
+        train, val = expand_files(args.train), expand_files(args.validation)
+    print(f'Training days/files: {len(train)}; validation: {len(val)}', flush=True)
     if set(train) & set(val):
         p.error('Training and validation files must not overlap')
     out = Path(args.output_dir)
@@ -160,7 +204,7 @@ def main():
     def evaluate():
         totals = {name: np.zeros(5) for name in ('preserve', 'transition', 'prior')}
         loss_sum, n = 0., 0
-        for x, a in batches(val, args):
+        for x, a in batches(val, args, seed=args.seed):
             old, base, target = [v.numpy() for v in references(x, a)]
             pred = student(x, training=False).numpy()
             if not np.isfinite(pred).all():
