@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Extract raw daily Wnet inputs from MERRA-2, using original prior conventions."""
 import argparse
+import random
 from contextlib import ExitStack
 from pathlib import Path
 import traceback
@@ -73,10 +74,28 @@ def write_day(date, args):
     print(f'Finished {output}', flush=True)
 
 
+def select_dates(years, explicit_dates=None, n_days=None, seed=1234):
+    """Sample uniformly without replacement from the union of selected years."""
+    if explicit_dates:
+        if n_days is not None:
+            raise ValueError('--dates and --n-days cannot be combined')
+        return sorted(set(pd.to_datetime(explicit_dates, format='%Y%m%d')))
+    if n_days is None or n_days < 1:
+        raise ValueError('Supply --n-days with a positive total number of days')
+    candidates = [date for year in sorted(set(years))
+                  for date in pd.date_range(f'{year}-01-01', f'{year}-12-31')]
+    if n_days > len(candidates):
+        raise ValueError(f'--n-days exceeds the {len(candidates)} available dates')
+    return sorted(random.Random(seed).sample(candidates, n_days))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--years', nargs='+', type=int, default=[2020, 2021])
     parser.add_argument('--dates', nargs='+', help='Optional explicit YYYYMMDD dates; overrides years')
+    parser.add_argument('--n-days', type=int,
+                        help='Total random days across all selected years, without replacement')
+    parser.add_argument('--seed', type=int, default=1234, help='Date sampling seed')
     parser.add_argument('--base-dir', default='/css/merra2/MERRA2_all')
     parser.add_argument('--outdir', default='./Xall_daily')
     parser.add_argument('--surface-level', type=int, default=71,
@@ -90,11 +109,12 @@ def main():
     args = parser.parse_args()
     if args.workers < 0 or args.threads_per_worker < 1:
         parser.error('workers must be nonnegative and threads-per-worker positive')
-    if args.dates:
-        dates = sorted(set(pd.to_datetime(args.dates, format='%Y%m%d')))
-    else:
-        dates = [date for year in sorted(set(args.years))
-                 for date in pd.date_range(f'{year}-01-01', f'{year}-12-31')]
+    try:
+        dates = select_dates(args.years, args.dates, args.n_days, args.seed)
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(f'Selected {len(dates)} dates (seed={args.seed}): ' +
+          ', '.join(date.strftime('%Y%m%d') for date in dates), flush=True)
     Path(args.outdir).mkdir(parents=True, exist_ok=True)
     failed = []
     with ExitStack() as stack:

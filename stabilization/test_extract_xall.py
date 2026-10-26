@@ -6,10 +6,27 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import xarray as xr
-from extract_xall import make_inputs, write_day, GRAV
+from extract_xall import make_inputs, write_day, select_dates, GRAV
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_random_dates(self):
+        selected = select_dates([2020, 2021], n_days=150)
+        self.assertEqual(len(selected), 150)
+        self.assertEqual(len(set(selected)), 150)
+        self.assertEqual(selected, select_dates([2021, 2020, 2020], n_days=150))
+        self.assertNotEqual(selected, select_dates([2020, 2021], n_days=150, seed=5))
+        self.assertEqual({d.year for d in selected}, {2020, 2021})
+        all_dates = select_dates([2020, 2021], n_days=731)
+        self.assertIn(pd.Timestamp('2020-02-29'), all_dates)
+        for count in (None, 0, -1, 732):
+            with self.assertRaises(ValueError):
+                select_dates([2020, 2021], n_days=count)
+        with self.assertRaises(ValueError):
+            select_dates([2020], ['20200101'], n_days=1)
+        self.assertEqual(select_dates([2020], ['20210101', '20210101']),
+                         [pd.Timestamp('2021-01-01')])
+
     def sources(self):
         dims = ('time', 'lev', 'lat', 'lon')
         coords = {'time': [0], 'lev': [1, 71, 72], 'lat': [0], 'lon': [0]}

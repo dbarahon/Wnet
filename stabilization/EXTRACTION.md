@@ -8,7 +8,7 @@ export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 python stabilization/extract_xall.py \
-  --years 2020 2021 --outdir /path/to/Xall_daily \
+  --years 2020 2021 --n-days 150 --seed 1234 --outdir /path/to/Xall_daily \
   --workers 16 --threads-per-worker 1
 ```
 
@@ -47,3 +47,14 @@ Tests (including a synthetic NetCDF write and retraining-reader round trip):
 ```bash
 python -m unittest discover -s stabilization -p 'test_*.py'
 ```
+
+## Random date selection
+
+`--n-days N` selects N total days uniformly without replacement from the union
+of all selected years (not N per year). It is required unless `--dates` is used,
+preventing accidental full-year extraction. Dates are processed chronologically
+and printed at startup. The same years, count and seed reproduce the selection;
+year order and repeated years do not change it. Leap days are included.
+`--dates` supplies exact dates and cannot be combined with `--n-days`.
+Existing output files still count toward the selected N and are skipped as usual.
+Missing input days are reported as failures, not silently replaced by other dates.
